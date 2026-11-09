@@ -13,7 +13,7 @@
 <section class="view" id="data"><div class="head"><div><div class="eyebrow">Importation et sauvegarde</div><h2>Mes données</h2></div></div><div class="panel"><b>Importer un groupe depuis une capture d’écran</b><p style="font-size:12px;color:#778397;line-height:1.5">Choisis une capture de ta liste d’élèves. Badminton School reconnaît les noms directement dans l’application. Vérifie ensuite la liste et donne un nom au groupe avant de l’ajouter.</p><div class="field"><label>Nom du groupe</label><input id="smartGroupName" placeholder="Ex. Secondaire 2 — Groupe 03"></div><label class="btn soft" for="smartFile" style="display:block;text-align:center;margin-bottom:10px">Choisir une capture d’écran</label><input type="file" id="smartFile" accept="image/*" style="width:100%"><button class="btn" id="smartAnalyze" style="width:100%;margin-top:10px">Reconnaître les élèves</button><div id="smartStatus" class="notice hidden"></div><div id="smartPreviewWrap" class="hidden"><div class="field"><label>Élèves détectés — corrige la liste au besoin</label><textarea id="smartNames" rows="10" style="width:100%;padding:12px;border:1px solid #dce2e9;border-radius:10px;font:inherit;font-size:14px"></textarea></div><button class="btn lime" id="smartImport" style="width:100%">Créer le groupe et ajouter les élèves</button></div></div><div class="panel"><b>Sauvegarder mes données</b><p style="font-size:12px;color:#778397;line-height:1.5">Télécharge une copie des groupes, élèves et résultats pour conserver tes données ou les transférer.</p><button class="btn" id="export" style="width:100%">Télécharger la sauvegarde</button></div><div class="panel"><b>Réinitialiser</b><p style="font-size:12px;color:#778397">Effacer toutes les données enregistrées sur cet appareil.</p><button class="btn red" id="reset">Effacer les données</button></div><div class="notice">Les données sont sauvegardées localement sur cet appareil. Une synchronisation entre plusieurs appareils nécessitera une base de données partagée.</div></section>
 </main><div class="foot">BADMINTON · BARRE EN BAS SCHOOL</div></div>
 <div class="modalback" id="modal"><div class="modal"><div class="eyebrow" id="mEyebrow">Nouveau</div><h3 id="mTitle"></h3><div id="mBody"></div><div class="actions"><button class="btn soft" id="cancel">Annuler</button><button class="btn lime" id="save">Confirmer</button></div></div></div><div class="toast" id="toast"></div>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 <script>
 const KEY='bebs-badminton-v1';let db=read(),current=null,saveAction=null;
 function read(){try{const d=JSON.parse(localStorage.getItem(KEY))||{groups:[]};d.groups=d.groups||[];d.groups.forEach(g=>{g.sessions=g.sessions||[];g.matches=g.matches||[];g.players=g.players||[]});return d}catch{return{groups:[]}}}
@@ -49,6 +49,19 @@ document.getElementById('export').onclick=()=>{let a=document.createElement('a')
 
 const smartFile=document.getElementById('smartFile'),smartStatus=document.getElementById('smartStatus'),smartPreview=document.getElementById('smartPreviewWrap');
 let smartParsedGroups=null;
+let tesseractLoading=null;
+function loadTesseract(){
+ if(window.Tesseract)return Promise.resolve(window.Tesseract);
+ if(tesseractLoading)return tesseractLoading;
+ tesseractLoading=new Promise((resolve,reject)=>{
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  s.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('Le moteur de reconnaissance ne s’est pas initialisé.'));
+  s.onerror=()=>reject(new Error('Impossible de charger le moteur de reconnaissance. Vérifie ta connexion.'));
+  document.head.appendChild(s);
+ });
+ return tesseractLoading;
+}
 function smartShowStatus(msg){smartStatus.textContent=msg;smartStatus.classList.remove('hidden')}
 function smartCleanLines(text){return String(text||'').split(/\r?\n/).map(x=>x.replace(/^\s*(?:[-•*]|\d+[.)])\s*/,'').trim()).filter(x=>x&&x.length>2&&!/^(nom|prénom|prenom|élève|eleve|groupe|liste des élèves)$/i.test(x))}
 document.getElementById('smartAnalyze').onclick=async()=>{
@@ -56,7 +69,8 @@ document.getElementById('smartAnalyze').onclick=async()=>{
  smartParsedGroups=null;smartPreview.classList.add('hidden');
  try{
   if(f.type.startsWith('image/')){
-   if(!window.Tesseract)throw new Error('Le moteur de reconnaissance ne s’est pas chargé. Recharge la page.');
+   smartShowStatus('Chargement du moteur de reconnaissance…');
+   const Tesseract=await loadTesseract();
    smartShowStatus('Lecture de la capture d’écran…');
    const worker=await Tesseract.createWorker('fra',1,{logger:m=>{if(m.status==='recognizing text')smartShowStatus('Reconnaissance des noms… '+Math.round((m.progress||0)*100)+' %')}});
    const result=await worker.recognize(f);await worker.terminate();
