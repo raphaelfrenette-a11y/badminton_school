@@ -10,9 +10,10 @@
 <div id="detail" class="hidden"><button class="back" id="back">← Tous les groupes</button><div class="head"><div><div class="eyebrow">Groupe sélectionné</div><h2 id="gTitle"></h2></div><button class="btn lime" id="newMatch">+ Match</button></div><div class="panel"><div class="eyebrow">Classement</div><div id="miniRank"></div></div><div class="head"><div><div class="eyebrow">Effectif</div><h2>Les élèves</h2></div><button class="btn soft sm" id="newStudent">+ Élève</button></div><div class="panel" id="students"></div></div></section>
 <section class="view" id="ranking"><div class="head"><div><div class="eyebrow">Performance</div><h2>Classement</h2></div></div><div class="field"><label>Groupe</label><select id="rankGroup"></select></div><div class="panel" id="rankList"></div></section>
 <section class="view" id="matches"><div class="head"><div><div class="eyebrow">Résultats</div><h2>Historique des matchs</h2></div><button class="btn" id="matchFromHistory">+ Match</button></div><div class="field"><label>Groupe</label><select id="matchGroup"></select></div><div class="panel" id="history"></div></section>
-<section class="view" id="data"><div class="head"><div><div class="eyebrow">Importation et sauvegarde</div><h2>Mes données</h2></div></div><div class="panel"><b>Importer les groupes de Henri ÉPS</b><p style="font-size:12px;color:#778397;line-height:1.5">Choisis un fichier JSON contenant les groupes et leurs élèves. Les groupes déjà présents seront fusionnés par nom.</p><input type="file" id="file" accept=".json,application/json"><button class="btn" id="import" style="width:100%;margin-top:10px">Importer le fichier</button></div><div class="panel"><b>Sauvegarder mes données</b><p style="font-size:12px;color:#778397;line-height:1.5">Télécharge une copie des groupes, élèves et résultats pour conserver tes données ou les transférer.</p><button class="btn" id="export" style="width:100%">Télécharger la sauvegarde</button></div><div class="panel"><b>Réinitialiser</b><p style="font-size:12px;color:#778397">Effacer toutes les données enregistrées sur cet appareil.</p><button class="btn red" id="reset">Effacer les données</button></div><div class="notice">Les données sont sauvegardées localement sur cet appareil. Une synchronisation entre plusieurs appareils nécessitera une base de données partagée.</div></section>
+<section class="view" id="data"><div class="head"><div><div class="eyebrow">Importation et sauvegarde</div><h2>Mes données</h2></div></div><div class="panel"><b>Importer depuis Henri ou une capture d’écran</b><p style="font-size:12px;color:#778397;line-height:1.5">Choisis le fichier JSON exporté depuis Henri, un fichier CSV ou une capture d’écran de ta liste. Pour une capture, les noms seront reconnus sur ton appareil et tu pourras les corriger avant l’importation.</p><div class="field"><label>Nom du groupe (pour une capture d’écran)</label><input id="smartGroupName" placeholder="Ex. EDU2G2-03"></div><input type="file" id="smartFile" accept=".json,.csv,application/json,text/csv,image/*"><button class="btn" id="smartAnalyze" style="width:100%;margin-top:10px">Analyser le fichier</button><div id="smartStatus" class="notice hidden"></div><div id="smartPreviewWrap" class="hidden"><div class="field"><label>Noms détectés — un élève par ligne</label><textarea id="smartNames" rows="10" style="width:100%;padding:12px;border:1px solid #dce2e9;border-radius:10px;font:inherit;font-size:14px"></textarea></div><button class="btn lime" id="smartImport" style="width:100%">Ajouter ces élèves au groupe</button></div></div><div class="panel"><b>Importer les groupes de Henri ÉPS</b><p style="font-size:12px;color:#778397;line-height:1.5">Choisis un fichier JSON contenant les groupes et leurs élèves. Les groupes déjà présents seront fusionnés par nom.</p><input type="file" id="file" accept=".json,application/json"><button class="btn" id="import" style="width:100%;margin-top:10px">Importer le fichier</button></div><div class="panel"><b>Sauvegarder mes données</b><p style="font-size:12px;color:#778397;line-height:1.5">Télécharge une copie des groupes, élèves et résultats pour conserver tes données ou les transférer.</p><button class="btn" id="export" style="width:100%">Télécharger la sauvegarde</button></div><div class="panel"><b>Réinitialiser</b><p style="font-size:12px;color:#778397">Effacer toutes les données enregistrées sur cet appareil.</p><button class="btn red" id="reset">Effacer les données</button></div><div class="notice">Les données sont sauvegardées localement sur cet appareil. Une synchronisation entre plusieurs appareils nécessitera une base de données partagée.</div></section>
 </main><div class="foot">BADMINTON · BARRE EN BAS SCHOOL</div></div>
 <div class="modalback" id="modal"><div class="modal"><div class="eyebrow" id="mEyebrow">Nouveau</div><h3 id="mTitle"></h3><div id="mBody"></div><div class="actions"><button class="btn soft" id="cancel">Annuler</button><button class="btn lime" id="save">Confirmer</button></div></div></div><div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
 const KEY='bebs-badminton-v1';let db=read(),current=null,saveAction=null;
 function read(){try{return JSON.parse(localStorage.getItem(KEY))||{groups:[]}}catch{return{groups:[]}}}
@@ -44,6 +45,53 @@ document.getElementById('rankGroup').onchange=renderRank;document.getElementById
 document.getElementById('matchFromHistory').onclick=()=>{let g=db.groups.find(x=>x.id===document.getElementById('matchGroup').value);if(!g){say('Crée ou importe un groupe');return}openGroup(g.id);matchForm()};
 document.getElementById('export').onclick=()=>{let a=document.createElement('a'),u=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.href=u;a.download='badminton-sauvegarde.json';a.click();URL.revokeObjectURL(u)};
 document.getElementById('import').onclick=async()=>{let f=document.getElementById('file').files[0];if(!f){say('Choisis un fichier JSON');return}try{let d=JSON.parse(await f.text()),arr=Array.isArray(d)?d:(d.groups||d.groupsData||[d]);let count=0;for(let raw of arr){let n=raw.name||raw.groupName||raw.title,students=raw.students||raw.players;if(!n||!Array.isArray(students))continue;let g=db.groups.find(x=>x.name.toLowerCase()===n.toLowerCase());if(!g){g={id:id(),name:n,players:[],matches:[]};db.groups.push(g)}for(let s of students){let name=typeof s==='string'?s:(s.name||s.fullName||s.studentName);if(name&&!g.players.some(p=>p.name.toLowerCase()===name.toLowerCase())){g.players.push({id:id(),name});count++}}}if(!count){say('Aucun élève importé. Vérifie le format JSON.');return}persist();say(count+' élève(s) importé(s)')}catch{say('Fichier JSON non reconnu')}};
+
+const smartFile=document.getElementById('smartFile'),smartStatus=document.getElementById('smartStatus'),smartPreview=document.getElementById('smartPreviewWrap');
+let smartParsedGroups=null;
+function smartShowStatus(msg){smartStatus.textContent=msg;smartStatus.classList.remove('hidden')}
+function smartCleanLines(text){return String(text||'').split(/\\r?\\n/).map(x=>x.replace(/^\\s*(?:[-•*]|\\d+[.)])\\s*/,'').trim()).filter(x=>x&&x.length>2&&!/^(nom|prénom|prenom|élève|eleve|groupe|liste des élèves)$/i.test(x))}
+document.getElementById('smartAnalyze').onclick=async()=>{
+ const f=smartFile.files[0];if(!f){say('Choisis un fichier');return}
+ smartParsedGroups=null;smartPreview.classList.add('hidden');
+ try{
+  if(f.type.startsWith('image/')){
+   if(!window.Tesseract)throw new Error('Le moteur de reconnaissance ne s’est pas chargé. Recharge la page.');
+   smartShowStatus('Lecture de la capture d’écran…');
+   const worker=await Tesseract.createWorker('fra',1,{logger:m=>{if(m.status==='recognizing text')smartShowStatus('Reconnaissance des noms… '+Math.round((m.progress||0)*100)+' %')}});
+   const result=await worker.recognize(f);await worker.terminate();
+   const names=smartCleanLines(result.data.text);
+   if(!names.length)throw new Error('Aucun nom détecté. Essaie une capture plus nette.');
+   document.getElementById('smartNames').value=names.join('\\n');
+   smartShowStatus(names.length+' lignes détectées. Vérifie les noms avant de les ajouter.');
+   smartPreview.classList.remove('hidden');
+  }else if(/\\.csv$/i.test(f.name)||f.type==='text/csv'){
+   const lines=smartCleanLines(await f.text());
+   document.getElementById('smartNames').value=lines.map(x=>x.split(/[;,]/)[0].replace(/^"|"$/g,'')).join('\\n');
+   smartShowStatus(lines.length+' lignes lues. Vérifie les noms avant de les ajouter.');
+   smartPreview.classList.remove('hidden');
+  }else{
+   const d=JSON.parse(await f.text());const arr=Array.isArray(d)?d:(d.groups||d.groupsData||[d]);smartParsedGroups=arr;
+   let n=0;for(const raw of arr){const students=raw.students||raw.players||[];n+=students.length}
+   if(!n)throw new Error('Aucun groupe ou élève reconnu dans ce JSON.');
+   smartShowStatus(arr.length+' groupes et '+n+' élèves détectés.');smartImportGroups(arr);say(n+' élèves importés');
+  }
+ }catch(e){smartShowStatus('Import impossible : '+e.message)}
+};
+function smartImportGroups(arr){
+ let count=0;
+ for(const raw of arr){const name=raw.name||raw.groupName||raw.title||'Groupe importé',students=raw.students||raw.players||[];if(!Array.isArray(students))continue;
+  let g=db.groups.find(x=>x.name.toLowerCase()===String(name).toLowerCase());
+  if(!g){g={id:id(),name:String(name),players:[],matches:[]};db.groups.push(g)}
+  for(const s of students){const nm=typeof s==='string'?s:(s.name||s.fullName||s.studentName);if(nm&&!g.players.some(p=>p.name.toLowerCase()===String(nm).toLowerCase())){g.players.push({id:id(),name:String(nm)});count++}}
+ }
+ persist();return count;
+}
+document.getElementById('smartImport').onclick=()=>{
+ const name=document.getElementById('smartGroupName').value.trim();if(!name){say('Indique le nom du groupe');return}
+ const names=smartCleanLines(document.getElementById('smartNames').value);if(!names.length){say('Aucun nom à importer');return}
+ const count=smartImportGroups([{name,students:names}]);say(count+' élève(s) ajouté(s)');smartPreview.classList.add('hidden');
+};
+
 document.getElementById('reset').onclick=()=>{if(confirm('Effacer tous les groupes et résultats de cet appareil?')){db={groups:[]};current=null;persist();document.getElementById('detail').classList.add('hidden');document.getElementById('home').classList.remove('hidden');say('Données effacées')}};
 function render(){renderGroups();fill();if(current)renderDetail()}render();
 </script></body></html>
