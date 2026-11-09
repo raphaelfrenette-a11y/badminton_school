@@ -49,7 +49,7 @@ document.getElementById('import').onclick=async()=>{let f=document.getElementByI
 const smartFile=document.getElementById('smartFile'),smartStatus=document.getElementById('smartStatus'),smartPreview=document.getElementById('smartPreviewWrap');
 let smartParsedGroups=null;
 function smartShowStatus(msg){smartStatus.textContent=msg;smartStatus.classList.remove('hidden')}
-function smartCleanLines(text){return String(text||'').split(/\\r?\\n/).map(x=>x.replace(/^\\s*(?:[-•*]|\\d+[.)])\\s*/,'').trim()).filter(x=>x&&x.length>2&&!/^(nom|prénom|prenom|élève|eleve|groupe|liste des élèves)$/i.test(x))}
+function smartCleanLines(text){return String(text||'').split(/\r?\n/).map(x=>x.replace(/^\s*(?:[-•*]|\d+[.)])\s*/,'').trim()).filter(x=>x&&x.length>2&&!/^(nom|prénom|prenom|élève|eleve|groupe|liste des élèves)$/i.test(x))}
 document.getElementById('smartAnalyze').onclick=async()=>{
  const f=smartFile.files[0];if(!f){say('Choisis un fichier');return}
  smartParsedGroups=null;smartPreview.classList.add('hidden');
@@ -61,12 +61,12 @@ document.getElementById('smartAnalyze').onclick=async()=>{
    const result=await worker.recognize(f);await worker.terminate();
    const names=smartCleanLines(result.data.text);
    if(!names.length)throw new Error('Aucun nom détecté. Essaie une capture plus nette.');
-   document.getElementById('smartNames').value=names.join('\\n');
+   document.getElementById('smartNames').value=names.join('\n');
    smartShowStatus(names.length+' lignes détectées. Vérifie les noms avant de les ajouter.');
    smartPreview.classList.remove('hidden');
-  }else if(/\\.csv$/i.test(f.name)||f.type==='text/csv'){
+  }else if(/\.csv$/i.test(f.name)||f.type==='text/csv'){
    const lines=smartCleanLines(await f.text());
-   document.getElementById('smartNames').value=lines.map(x=>x.split(/[;,]/)[0].replace(/^"|"$/g,'')).join('\\n');
+   document.getElementById('smartNames').value=lines.map(x=>x.split(/[;,]/)[0].replace(/^"|"$/g,'')).join('\n');
    smartShowStatus(lines.length+' lignes lues. Vérifie les noms avant de les ajouter.');
    smartPreview.classList.remove('hidden');
   }else{
